@@ -18,7 +18,7 @@ Resources:
 
 --------------------------------------------------------------------------------
 
-	CurrencyCalculationService ---> CurrencyExchangeService ---> LimitsService
+	CurrencyConversionService ---> CurrencyExchangeService ---> LimitsService
 	                                           |                       |
 	                                           |                       |
 	                                           v                       v
@@ -53,3 +53,64 @@ Resources:
 | Zuul - Currency Exchange & Exchange Services | http://localhost:8765/currency-exchange-service/currency-exchange/from/EUR/to/INR http://localhost:8765/currency-conversion-service/currency-converter-feign/from/USD/to/INR/quantity/10|
 | Zipkin | http://localhost:9411/zipkin/ |
 | Spring Cloud Bus Refresh | http://localhost:8080/bus/refresh |
+
+
+
+
+## Open Feing: This is a Rest Client Library
+
+	Feign makes writing java http clients easier
+	https://cloud.spring.io/spring-cloud-openfeign/
+	https://github.com/OpenFeign/feign
+
+	Example found in the project: currency-conversion-service who calls the service http://localhost:8000/currency-exchange/from/USD/to/COP
+
+	1. We have to add the dependency:
+	<dependency>
+		<groupId>org.springframework.cloud</groupId>
+		<artifactId>spring-cloud-starter-openfeign</artifactId>
+	</dependency>
+	
+	2. Then, enable Feing in the SpringBoot Java Class:
+	@EnableFeignClients("com.in28minutes.microservices.currencyconversionservice")
+
+	3. This is client using RestTemplate:
+
+			Map<String, String> uriVariables = new HashMap<>();
+        	uriVariables.put("from", from);
+        	uriVariables.put("to", to);
+
+        	ResponseEntity<CurrencyConversionBean> responseEntity = new RestTemplate().
+                		getForEntity("http://localhost:8000/currency-exchange/from/{from}/to/{to}",
+                        CurrencyConversionBean.class,
+                        uriVariables);
+
+        	CurrencyConversionBean response = responseEntity.getBody();
+
+	4. Build now a Feing Client.
+		Add a proxy, A Java interface: CurrencyExchangeServiceProxy
+
+		import org.springframework.cloud.openfeign.FeignClient;
+		import org.springframework.web.bind.annotation.GetMapping;
+		import org.springframework.web.bind.annotation.PathVariable;
+
+		@FeignClient(name="currency-exchange-service", url="localhost:8000")
+		public interface CurrencyExchangeServiceProxy {
+
+		    @GetMapping("/currency-exchange/from/{from}/to/{to}")
+		    CurrencyConversionBean retrieveExchangeValue(@PathVariable("from") String from, @PathVariable("to") String to);
+
+		}
+
+	5. Use the proxy from controller to call in a simpler way a REST Service:
+
+		private CurrencyExchangeServiceProxy proxy;
+
+		CurrencyConversionBean response = proxy.retrieveExchangeValue(from, to);
+
+
+
+## Ribbons: It is a Local Load Balancer. 
+	Local = The microservice client do load balance
+
+

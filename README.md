@@ -113,4 +113,33 @@ Resources:
 ## Ribbons: It is a Local Load Balancer. 
 	Local = The microservice client do load balance
 
+	The Currency Converter Service calls the Currency Exchange Service
+	The Currency Converter Service is one instance.
+	The Currency Exchange Service  is two instances.
+	The Currency Converter Service uses Ribbon for Load Balancing the calls to the Currency Exchange Service.
+	Used library for doing Ribbong Load Balancing:
+                <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
+                </dependency>
+    The list of instances of the Currency Exchange Service are defined in the properties file:
+    	currency-exchange-service.ribbon.listOfServers=http://localhost:8000,http://localhost:8001
+    The following Interface is the Proxy for doing calls to the Exchange Service from the Converter Service:
+    	package com.in28minutes.microservices.currencyconversionservice;
 
+		import org.springframework.cloud.netflix.ribbon.RibbonClient;
+		import org.springframework.cloud.openfeign.FeignClient;
+		import org.springframework.web.bind.annotation.GetMapping;
+		import org.springframework.web.bind.annotation.PathVariable;
+
+		@FeignClient(name="currency-exchange-service")
+		@RibbonClient(name="currency-exchange-service")
+		public interface CurrencyExchangeServiceProxy {
+
+		    @GetMapping("/currency-exchange/from/{from}/to/{to}")
+		    CurrencyConversionBean retrieveExchangeValue(@PathVariable("from") String from, @PathVariable("to") String to);
+
+		}
+
+		The proxy uses also Feign for doing the magic to do the call with the Java Interface to the Exchange Service.
+		

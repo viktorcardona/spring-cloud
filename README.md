@@ -142,4 +142,52 @@ Resources:
 		}
 
 		The proxy uses also Feign for doing the magic to do the call with the Java Interface to the Exchange Service.
-		
+
+
+## Eureka Naming Server
+
+	Keeping the list of instances of a service in a properties file would be a nightmare.
+	This is why the Naming Servers exist to exposes the following services:
+
+		- Service discovery
+		- Service registration
+
+	All the services are registered automatically and dinamically to the Naming Server.
+	If one service needs to connect with another one, the service talks to the Naming Server to know the details of the service to connect with.
+	That is service discovery.
+
+	Eureka Server Project:
+		netflix-eureka-naming-server
+			The following is the main libreary:
+				<dependency>
+					<groupId>org.springframework.cloud</groupId>
+					<artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+				</dependency>
+			The following properties are added:
+				spring.application.name=netflix-eureka-naming-server
+				server.port=8761
+				eureka.client.register-with-eureka=false
+				eureka.client.fetch-registry=false
+			When the app is running we can go to the Eureka Server Web Console:
+				http://localhost:8761/
+	Eureka Client Project:
+		currency-conversion-service
+			In order to connect this app to the Eureka Naming Server.
+			Add the following dependency:
+				<dependency>
+		            <groupId>org.springframework.cloud</groupId>
+		            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		        </dependency>
+		    Add the following properties:
+				eureka.client.service-url.default-zone=http://localhost:8761/eureka
+			In the application class spring boot component add the annotation:
+				@EnableDiscoveryClient
+			Start the app.
+			Then in the Eureka Naming Server App the app is listed:
+				http://localhost:8761/
+				Application					AMIs	Availability Zones	Status
+				CURRENCY-CONVERSION-SERVICE	n/a (1)	(1)					UP (1) - 192.168.0.4:currency-conversion-service:8100
+
+	
+
+

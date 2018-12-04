@@ -187,6 +187,29 @@ Resources:
 				http://localhost:8761/
 				Application					AMIs	Availability Zones	Status
 				CURRENCY-CONVERSION-SERVICE	n/a (1)	(1)					UP (1) - 192.168.0.4:currency-conversion-service:8100
+			Since we are now using the Eureka Naming Server, we can now remove the hard coded list of Currency Exchange Service from the 
+				properties file. The following line from the properties file should be removed:
+				currency-exchange-service.ribbon.listOfServers=http://localhost:8000,http://localhost:8001
+				This information is now provided by the Eureka Naming Server
+				We can add new instances of Exchange Service or we can Remove instances of the Exchange Service and 
+					the conversion service should continue working with the available instances.
+	Eureka Client Project:
+		currency-exchange-service
+			In order to connect this app to the Eureka Naming Server.
+			Add the following dependency:
+				<dependency>
+		            <groupId>org.springframework.cloud</groupId>
+		            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		        </dependency>
+		    Add the following properties:
+				eureka.client.service-url.default-zone=http://localhost:8761/eureka
+			In the application class spring boot component add the annotation:
+				@EnableDiscoveryClient
+			Start the app.
+			Then in the Eureka Naming Server App the app is listed:
+				http://localhost:8761/
+				Application					AMIs	Availability Zones	Status
+				CURRENCY-EXCHANGE-SERVICE	n/a (2)	(2)	UP (2) - 192.168.0.4:currency-exchange-service:8001 , 192.168.0.4:currency-exchange-service:8000
 
 	
 

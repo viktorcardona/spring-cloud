@@ -212,5 +212,85 @@ Resources:
 				CURRENCY-EXCHANGE-SERVICE	n/a (2)	(2)	UP (2) - 192.168.0.4:currency-exchange-service:8001 , 192.168.0.4:currency-exchange-service:8000
 
 	
+## API Gateway: Zuul
+
+	Offers common functionality like:
+		- Authentication, Authorization, and Security
+		- Rate Limits
+		- Fault Tolerance
+		- Service Aggregation (A cliemt calls only 1 service instead of 20 services)
+
+	Netflix provides an implementation called: Zuul
+	Steps:
+		1. Create a component for Zuul API Gateway Server
+			webapp name:
+				netflix-zuul-api-gateway-server
+			port: 
+				8765
+		2. Decide what should do the API Gateway
+			It will log all requests that pass through the API Gateway server.
+				Class name: ZuulLoggingFilter
+		3. Start the following Apps:
+			- netflix-eureka-naming-server
+			- currency-exchange-service
+			- currency-conversion-service
+			- netflix-zuul-apigateway-server
+		4. Call:
+			http://localhost:8000/currency-exchange/from/USD/to/COP
+		5. It is needed to do the above call through the zuul apigateway server
+			Use the following URL pattern:
+			http://localhost:8765/{application-name}/{uri}
+			where:
+				{application-name} is found in the properties file of the currency-eschange app which is:
+									currency-exchange-service
+				{uri} is the full URI of the service which is:
+									/currency-exchange/from/USD/to/COP
+			Therefore:
+			http://localhost:8765/{application-name}/{uri}
+			It is 
+			http://localhost:8765/currency-exchange-service/currency-exchange/from/USD/to/COP
+		6. After calling the above URL through the Zuul API Gateway Server we got the log:
+			request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@32c1e40 request uri -> /currency-exchange-service/currency-exchange/from/USD/to/COP
+
+			Therefore, calling the following URL:
+			http://localhost:8765/currency-exchange-service/currency-exchange/from/USD/to/COP
+			Redirects to the URL:
+			http://localhost:8000/currency-exchange/from/USD/to/COP
+		7. Setting the call from the conversion service to the Exchange Service passing through the Zuul Server.
+			Currency-Conversion-Service
+				In the interface:
+				CurrencyExchangeServiceProxy
+				We have:
+				@FeignClient(name="currency-exchange-service")
+				So this should be changed in order to connect with the Zull APIGateway Server
+				We need the application name of the Zuul APIGateway Server which is found in the properties file:
+				netflix-zuul-api-gateway-server
+				The value 
+				@FeignClient(name="currency-exchange-service")
+				It is replaced by:
+				@FeignClient(name="netflix-zuul-api-gateway-server")
+				It is also required to change in the GET Mapping the URL:
+				@GetMapping("/currency-exchange/from/{from}/to/{to}")
+				By this, where we append the application name:
+				@GetMapping("/currency-exchange-service/currency-exchange/from/{from}/to/{to}")
+			Now we can call:
+			http://localhost:8100/currency-converter-feing/from/USD/to/COP/quantity/3
+			Which call Exchange Service through Zuul Server API Gateway
+			And we get the log in the Zuul Server APIGatway:
+			c.i.m.n.ZuulLoggingFilter                : request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@42e7af59 request uri -> /currency-exchange-service/currency-exchange/from/USD/to/COP
+		8. Now call the Converter Service through Zuul Server, wich call Exchange Service through Zuul Server:
+			URL of Converter Service:
+			http://localhost:8100/currency-converter-feing/from/USD/to/COP/quantity/3
+			To call the above service through Zuul Server:
+			http://localhost:8765/{app-name}{uri}
+			Therefore:
+			http://localhost:8765/currency-conversion-service/currency-converter-feing/from/USD/to/COP/quantity/3
+			So we get 2 logs on the Zuul Server APIGateway:
+			
+			request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@7f69dfc6 request uri -> /currency-conversion-service/currency-converter-feing/from/USD/to/COP/quantity/3
+
+			request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@3c29823b request uri -> /currency-exchange-service/currency-exchange/from/USD/to/COP
+
+
 
 

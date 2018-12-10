@@ -9,11 +9,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 // the URLs of the service to call are configured in the properties file:
 // currency-exchange-service.ribbon.listOfServers=http://localhost:8000,http://localhost:8001
 //@FeignClient(name="currency-exchange-service", url="localhost:8000")
-@FeignClient(name="currency-exchange-service")
+//The following line is change to @FeignClient(name="netflix-zuul-api-gateway-server") in order to make the call to exchange service pass through the Zuul APIGateway Server
+//@FeignClient(name="currency-exchange-service")
+@FeignClient(name="netflix-zuul-api-gateway-server")
 @RibbonClient(name="currency-exchange-service")
 public interface CurrencyExchangeServiceProxy {
 
-    @GetMapping("/currency-exchange/from/{from}/to/{to}")
+
+    //The following line was commented and replace by @GetMapping("/currency-exchange-service/currency-exchange/from/{from}/to/{to}") in order to make the call to exchange service pass through the Zuul APIGateway Server
+    //@GetMapping("/currency-exchange/from/{from}/to/{to}")
+    @GetMapping("/currency-exchange-service/currency-exchange/from/{from}/to/{to}")
     CurrencyConversionBean retrieveExchangeValue(@PathVariable("from") String from, @PathVariable("to") String to);
 
 }

@@ -16,6 +16,8 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 public class CurrencyConversionController {
 
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+
     private CurrencyExchangeServiceProxy proxy;
 
     public CurrencyConversionController(CurrencyExchangeServiceProxy proxy) {
@@ -44,12 +46,14 @@ public class CurrencyConversionController {
                 quantity, quantity.multiply(response.getConversionMultiple()), response.getPort());
     }
 
-    @GetMapping("/currency-converter-feing/from/{from}/to/{to}/quantity/{quantity}")
+    @GetMapping("/currency-converter-feign/from/{from}/to/{to}/quantity/{quantity}")
     public CurrencyConversionBean convertCurrencyFeign(@PathVariable String from,
                                                   @PathVariable String to,
                                                   @PathVariable BigDecimal quantity) {
 
         CurrencyConversionBean response = proxy.retrieveExchangeValue(from, to);
+
+        logger.info("Target Log :::: {}", response);
 
         return new CurrencyConversionBean(
                 response.getId(), from, to,

@@ -292,5 +292,233 @@ Resources:
 			request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@3c29823b request uri -> /currency-exchange-service/currency-exchange/from/USD/to/COP
 
 
+## Distributed Tracing
+
+	Allows to go into one place and check what happens with a specific request.
+	
+	Tools: 
+		Spring Cloud Sleuth: 
+			Assigns a unique ID  to a request so that we can trace it
+		Zipkin:
+			It is a distributed tracing system
+
+	Task: 
+		Put all the logs from the different services in a MQ (rabbitMQ) to centralize it
+
+		Implements the unique ID for the services:
+			- currency-conversion-service
+			- currency-exchange-service
+			- netflix-zuul-api-gateway-server
+
+		Add the following dependency to the pom file for the above listed projects:
+
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-starter-sleuth</artifactId>
+			</dependency>
+
+			Remember to use:
+			<spring-cloud.version>Greenwich.RELEASE</spring-cloud.version>
+
+		To trace all request it is needed to create a 'Always Sampler':
+
+			import brave.sampler.Sampler;
+
+			@Bean
+			public Sampler defaultSampler(){
+				return Sampler.ALWAYS_SAMPLE;
+			}
+
+
+		Now when the apps log messages through log4j (org.slf4j.Logger) the messages will printed with the unique ID.
+		.............................................................................................................
+
+		We have added the following log message in the controller of the:
+			currency-exchange-service
+			currency-conversion-service
+
+		private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+		logger.info("Target Log ::::  {}", exchangeValue);
+
+		Then, start the applications:
+			- spring-cloud-config-server
+			- netflix-eureka-naming-server
+			- netflix-zuul-api-gateway-server
+			- currency-exchange-service
+			- currency-conversion-service
+
+
+		Go to:
+
+		http://localhost:8100/currency-converter-feign/from/EUR/to/INR/quantity/10000
+
+		Now in the log message from each app we found the unique ID generated 86b2a67d5b9bb4e7 'magic!':
+
+		
+		Log of the App - currency-conversion-service:
+		.............................................
+
+			2019-01-31 07:48:46.628  INFO [currency-conversion-service,86b2a67d5b9bb4e7,86b2a67d5b9bb4e7,true] 1426 --- [nio-8100-exec-1] c.i.m.c.CurrencyConversionController     : Target Log :::: com.in28minutes.microservices.currencyconversionservice.CurrencyConversionBean@1519ace2
+
+		Log of the App - currency-exchange-service:
+		...........................................
+
+			2019-01-31 07:48:46.550  INFO [currency-exchange-service,86b2a67d5b9bb4e7,02723b9138e604d8,true] 1431 --- [nio-8000-exec-1] c.i.m.c.CurrencyExchangeController       : Target Log ::::  com.in28minutes.microservices.currencyexchangeservice.ExchangeValue@ec7ce85
+
+		Log of the App - netflix-zuul-api-gateway-server:
+		................................................
+
+			2019-01-31 07:48:46.090  INFO [netflix-zuul-api-gateway-server,86b2a67d5b9bb4e7,e3896af6a2d139d1,true] 1374 --- [nio-8765-exec-4] c.i.m.n.ZuulLoggingFilter                : request -> org.springframework.cloud.netflix.zuul.filters.pre.Servlet30RequestWrapper@4578b754 request uri -> /currency-exchange-service/currency-exchange/from/EUR/to/INR
+
+
+		The drawback is that the log messages are distributed in different locations across multiple servers.
+		We need to centralize the log messages in order to facilitate its trace and analysis.
+		Centralized Logs Solutions using Elastic Search:
+			- Haystack Log Stash
+			- Key Abana
+		We are going to use Zipkin Distributed Tracing Server to get a consolidated view of whats is happening across all microservices.
+		We are going to use a UI to check the consolidated log.
+		We are going to use Rabbit MQ to consolidate the logs:
+
+
+--------------------------------------------------------------------------------
+
+	CurrencyCalculationService     CurrencyExchangeService       LimitsService
+	            |                           | 						   |
+				|					    	|  						   |
+				|					    	V   					   |
+				-------------------->  Rabbit_MQ   <-------------------
+									    	|
+									    	|
+									    	V
+						        ZipkinDistributesTracingServer
+						        	        |
+									    	|
+									    	V
+						        		 Database
+--------------------------------------------------------------------------------
+		*********
+		Rabbit_MQ
+		*********
+			Install Rabbit_MQ on MAC:
+				https://www.rabbitmq.com/install-homebrew.html
+				Run:
+					brew update
+					brew install rabbitmq
+						This install Erlang which is required to run RabbitMQ
+				The Rabbit_MQ server scripts are installed into /usr/local/sbin/
+				Then, add the folder to the PATH, in the file /Users/me/.profile or /Users/me/.bash_profile
+
+					#Rabbit MQ Server  
+					export PATH=${PATH}:/usr/local/sbin
+				Now we can start the Rabbit MQ server typing:
+				------------------
+				| rabbitmq-server |
+				------------------
+
+		*********************************
+		Zipkin Distributed Tracing Server
+		*********************************
+
+			Here spring-projects/spring-cloud:
+			https://github.com/spring-projects/spring-cloud/wiki
+
+			Options to start the Zipkin Server:
+				https://zipkin.io/pages/quickstart.html
+			We are going to use the Java option. Also Docker is available.
+
+			cd /Users/victorcardona/software/zipkinserver/
+			java -jar zipkin.jar
+
+			Go to:
+
+			http://localhost:9411/zipkin/
+
+			Start Zipkin Server listening to Rabbit MQ:
+
+			|---------------------------------------------------
+			|  cd /Users/victorcardona/software/zipkinserver/   |
+			|  RABBIT_URI=amqp://localhost java -jar zipkin.jar |
+			----------------------------------------------------
+
+
+			Go to:
+
+			http://localhost:9411/zipkin/
+
+
+		***********************************************************************
+		Connect Microservices to Rabbit_MQ -> Zipkin Distributed Tracing Server
+		***********************************************************************
+
+			Microservices:
+
+			- currency-conversion-service
+			- currency-exchange-service
+			- netflix-zuul-api-gateway-server
+
+			Add the following dependencies to the pom file for the above listed projects:
+
+				The following dependency allows to use the message format used by Zipkin Server:
+
+				<dependency>
+					<groupId>org.springframework.cloud</groupId>
+					<artifactId>spring-cloud-sleuth-zipkin</artifactId>
+				</dependency>
+
+				The following dependency allows to use send the messages to the RabbitMQ message broker:
+
+				<dependency>
+					<groupId>org.springframework.amqp</groupId>
+					<artifactId>spring-rabbit</artifactId>
+				</dependency>
+
+				Before spring-rabbit the old dependency used was:
+
+					<dependency>
+						<groupId>org.springframework.cloud</groupId>
+						<artifactId>spring-cloud-starter-bus-amqp</artifactId>
+					</dependency>
+
+			Remember to use the Spring Boot version 2.1.2.RELEASE
+			*****************************************************
+			
+			The following Server should be restarted in the specified order:
+
+			- 1. RabbitMQ
+			- 2. Zipkin Server. Check ZipKin Server is running in: http://localhost:9411/zipkin/
+
+			Restart the following services in the specified order:
+
+			Microservices:
+
+			- 1. spring-cloud-config-server
+			- 2. netflix-eureka-naming-server
+			- 3. netflix-zuul-api-gateway-server
+			- 4. currency-conversion-service
+			- 5. currency-exchange-service
+			
+
+			Check the Eureka Naming Server is running:
+				http://localhost:8761/
+				From here check the following apps are running:
+					CURRENCY-CONVERSION-SERVICE
+					CURRENCY-EXCHANGE-SERVICE
+					NETFLIX-ZUUL-API-GATEWAY-SERVER
+
+			Now go to the following URL service to generate the logs:
+
+				http://localhost:8100/currency-converter-feign/from/EUR/to/INR/quantity/10000
+
+			Now check the trace in the Zipkin Server:
+
+				http://localhost:9411/zipkin/
+
+
+
+
+
+
 
 

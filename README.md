@@ -516,6 +516,53 @@ Resources:
 				http://localhost:9411/zipkin/
 
 
+## Spring Cloud Bus
+
+	The following app (http://localhost:8888) allows to manage in a centralized way the configuration of multiple microservices.
+		spring-cloud-config-server
+		The configuration is managed through .properties files
+		The .properties files in this sample app are managed in a git repo.
+	The following app is configured to use the spring-cloud-config-server (spring.cloud.config.uri=http://localhost:8888)
+		limits-service
+		Two instances of this apps are running:
+			http://localhost:8080/limits
+			http://localhost:8081/limits
+		When the properties file is updated in the git repo the changes are not taken in hot by the limits apps.
+			In order to make the changes be taken by the limits apps without re-starting the apps it is required to call the following endpoints:
+				POST: http://localhost:8080/actuator/refresh
+				POST: http://localhost:8081/actuator/refresh
+			The problem is when we have thousands of microservices. It is too expensive to do thousands of calls to actuator/refresh endpoint
+	
+	Solution: 
+
+		****************
+		Spring Cloud Bus
+		****************
+
+		We need to call only one endpoint and being able to refresh all the instances of the microservice.
+		We are going to use Rabbit MQ. Another alternatices are available like Kafka
+		Start the Rabbit MQ
+		The dependency:
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-starter-bus-amqp</artifactId>
+			</dependency>
+		The apps should be configured to use spring cloud bus above dependency:
+			- spring-cloud-config-server
+			- limits-service
+		Start the apps
+		Do a change on the .properties file
+		Call the endpoint on only one of the microservices instances, for example:
+			POST http://localhost:8080/actuator/bus-refresh
+			Only once is now required to update all the microservice instances.
+			The call publish an event in the Spring Cloud Bus, then the Spring Cloud Bus will propagate that event to all the instances of the microservice.
+			Behind the scenes Spring Boot automatically configure a connection with the rabbit mq, this is done just with the spring-rabbit dependency and the rabbit mq running in the background
+
+
+
+
+
+
 
 
 

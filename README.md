@@ -559,6 +559,63 @@ Resources:
 			Behind the scenes Spring Boot automatically configure a connection with the rabbit mq, this is done just with the spring-rabbit dependency and the rabbit mq running in the background
 
 
+## Fault Tolerance with Hystrix
+
+		Hystrix help to build a fault tolerant microservices.
+
+		In the app:
+
+			- limits-service
+
+		Add the dependency:
+
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+			</dependency>
+
+		Enable Hystrix in the LimitsServiceApplication:
+
+			import org.springframework.cloud.netflix.hystrix.EnableHystrix;
+
+			@EnableHystrix
+
+		Add new method on the controller:
+
+			@GetMapping("/fault-tolerance-example")
+		    public LimitConfiguration retrieveConfiguration() {
+		        throw new RuntimeException("Not available");
+		    }
+
+		Go to:
+			
+			http://localhost:8080/fault-tolerance-example
+			We got:
+				There was an unexpected error (type=Internal Server Error, status=500).
+				Not available
+				java.lang.RuntimeException: Not available
+		
+		Now use Hystrix:
+
+			@GetMapping("/fault-tolerance-example")
+		    @HystrixCommand(fallbackMethod="fallbackRetrieveConfiguration")
+		    public LimitConfiguration retrieveConfiguration() {
+		        throw new RuntimeException("Not available");
+		    }
+
+		    private LimitConfiguration fallbackRetrieveConfiguration() {
+		        return new LimitConfiguration(999, 9);
+		    }
+
+		Go to:
+
+			http://localhost:8080/fault-tolerance-example
+			
+			We got the fault tolerance behavior:
+				{
+					maximun: 999,
+					minimum: 9
+				}
 
 
 
